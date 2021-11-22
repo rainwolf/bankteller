@@ -65,7 +65,7 @@ addCustomer (ExperimentState f c mw t es g) customerProcessingTime =
         es' = insertDescending (insertDescending es (Event c' Arrive)) (Event f' Leave)
     in ExperimentState f' c' m' t' es' g'
 
-maxAvgQLength :: [Event] -> (Integer, Double)
+maxAvgQLength :: [Event] -> (Integer, Double) -- weighted average over time
 maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
     where
         (maxQueueLength, weightedQueueLengths, totalTime, _) = foldr (\(Event eventT eventAL) (accMax, accAvg, accTime, accQueue) ->
@@ -77,7 +77,18 @@ maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
                 accMax' = max accMax accQueue'
             in (accMax', accAvg', accTime', accQueue')
             ) (0, 0, 0, 0) es
-
+-- maxAvgQLength :: [Event] -> (Integer, Double) -- average over different queue lengths
+-- maxAvgQLength es = (maxQueueLength, fromIntegral totalQueueLengths / totalQueues)
+--     where
+--         (maxQueueLength, totalQueueLengths, totalQueues, _) = foldr (\(Event eventT eventAL) (accMax, accAvg, accCount, accQueue) ->
+--             let
+--                 accQueue' = if eventAL == Arrive then accQueue + 1 else accQueue - 1
+--                 accAvg' = accAvg + accQueue
+--                 accCount' = accCount + 1.0
+--                 accMax' = max accMax accQueue'
+--             in (accMax', accAvg', accCount', accQueue')
+--             ) (0, 0, 0, 0) es
+    
 runSimulation :: Int -> String -> (Double -> Double) -> IO ()
 runSimulation sampleSize tag customerTime = do
     r :: Int <- randomIO
