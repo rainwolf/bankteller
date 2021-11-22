@@ -6,10 +6,10 @@ import Data.List ( foldl' )
 
 
 nextCustomerTime :: Double -> Double
-nextCustomerTime p = -200 * log (1 - p)
+nextCustomerTime p = -100 * log (1 - p)
 
 customerProcessingTimeF :: Double -> Double -> Double -> Double
-customerProcessingTimeF a b p = 200*p**(a-1)*(1-p)**(b-1)
+customerProcessingTimeF a b p = 200*(p**(a-1))*((1-p)**(b-1))
 
 yellowCustomerTime :: Double -> Double
 yellowCustomerTime = customerProcessingTimeF 2 5
