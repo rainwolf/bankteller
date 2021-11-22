@@ -1,0 +1,1 @@
+```stack build --ghc-options -O2 && stack exec -- bankteller-exe```
