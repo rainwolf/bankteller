@@ -37,9 +37,9 @@ instance Ord Event where
 get2Random :: StdGen -> (Double, Double, StdGen)
 get2Random g = let (p1, g1) = uniformR (0, 1) g; (p2, g') = uniformR (0, 1) g1 in (p1, p2, g')
 
-insertDescendingted :: (Ord a) => [a] -> a -> [a]
-insertDescendingted [] x = [x]
-insertDescendingted all@(x:xs) y = if y > x then y:all else x:insertDescendingted xs y
+insertDescending :: (Ord a) => [a] -> a -> [a]
+insertDescending [] x = [x]
+insertDescending all@(x:xs) y = if y > x then y:all else x:insertDescending xs y
 
 addCustomer :: ExperimentState -> (Double -> Double) -> ExperimentState
 addCustomer (Init g) customerProcessingTime =
@@ -50,7 +50,7 @@ addCustomer (Init g) customerProcessingTime =
         f' = x + y -- updated tellerIsFreeAt time
         t' = 0 -- new totalWaitTime
         m' = 0 -- new maxWaitTime
-        es' = [Event c' Arrive, Event f' Leave]
+        es' = [Event f' Leave, Event c' Arrive]
     in ExperimentState f' c' m' t' es' g'
 addCustomer (ExperimentState f c mw t es g) customerProcessingTime =
     let
@@ -62,13 +62,13 @@ addCustomer (ExperimentState f c mw t es g) customerProcessingTime =
         waitTime = if tellerIsFreeOnArrival then 0 else f - c'
         t' = t + waitTime -- new totalWaitTime
         m' = max mw waitTime -- new maxWaitTime
-        es' = insertDescendingted (insertDescendingted es (Event c' Arrive)) (Event f' Leave)
+        es' = insertDescending (insertDescending es (Event c' Arrive)) (Event f' Leave)
     in ExperimentState f' c' m' t' es' g'
 
 maxAvgQLength :: [Event] -> (Integer, Double)
-maxAvgQLength es = (m, a / t)
+maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
     where
-        (m, a, t, q) = foldr (\(Event eventT eventAL) (accMax, accAvg, accTime, accQueue) ->
+        (maxQueueLength, weightedQueueLengths, totalTime, _) = foldr (\(Event eventT eventAL) (accMax, accAvg, accTime, accQueue) ->
             let
                 accQueue' = if eventAL == Arrive then accQueue + 1 else accQueue - 1
                 deltaT = eventT - accTime
@@ -92,5 +92,5 @@ runSimulation sampleSize tag customerTime = do
 main :: IO ()
 main = do
     let
-        sampleSize = 100000
+        sampleSize = 200000
     mapM_ (uncurry $ runSimulation sampleSize) [("Yellow", yellowCustomerTime), ("Red", redCustomerTime), ("Blue", blueCustomerTime)]
