@@ -2,8 +2,8 @@
 module Main where
 
 import System.Random ( randomIO, uniformR, mkStdGen, StdGen )
-import Data.List ( foldl' )
-
+import Data.List ( foldl', elemIndex )
+import Data.Maybe (fromJust)
 
 nextCustomerTime :: Double -> Double
 nextCustomerTime p = -100 * log (1 - p)
@@ -89,19 +89,27 @@ maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
 --             in (accMax', accAvg', accCount', accQueue')
 --             ) (0, 0, 0, 0) es
     
-runSimulation :: Int -> String -> (Double -> Double) -> IO ()
+runSimulation :: Int -> String -> (Double -> Double) -> IO Double
 runSimulation sampleSize tag customerTime = do
     r :: Int <- randomIO
     let init = Init $ mkStdGen r
         ExperimentState _ _ m t events _ = foldl' (\acc _ -> addCustomer acc customerTime) init [1..sampleSize]
         (mQ, aQ) = maxAvgQLength events
+        avgWait = t / fromIntegral sampleSize
     print $ tag ++ " customer max wait time: " ++ show m
-    print $ tag ++ " customer avg wait time: " ++ show (t / fromIntegral sampleSize)
+    print $ tag ++ " customer avg wait time: " ++ show avgWait
     print $ tag ++ " customer max queue length: " ++ show mQ
     print $ tag ++ " customer avg queue length: " ++ show aQ
+    return (m - avgWait)
 
 main :: IO ()
 main = do
     let
         sampleSize = 200000
-    mapM_ (uncurry $ runSimulation sampleSize) [("Yellow", yellowCustomerTime), ("Red", redCustomerTime), ("Blue", blueCustomerTime)]
+        inputs = [("Yellow", yellowCustomerTime), ("Red", redCustomerTime), ("Blue", blueCustomerTime)]
+    results <- mapM (uncurry $ runSimulation sampleSize) inputs
+    let
+        m = minimum results
+        i = fromJust $ elemIndex m results
+        tag = fst $ inputs !! i
+    print $ tag ++ " customers have the closest value between the average and maximum customer waiting times"
