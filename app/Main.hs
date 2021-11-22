@@ -37,9 +37,9 @@ instance Ord Event where
 get2Random :: StdGen -> (Double, Double, StdGen)
 get2Random g = let (p1, g1) = uniformR (0, 1) g; (p2, g') = uniformR (0, 1) g1 in (p1, p2, g')
 
-insertReverseSorted :: (Ord a) => [a] -> a -> [a]
-insertReverseSorted [] x = [x]
-insertReverseSorted all@(x:xs) y = if y > x then y:all else x:insertReverseSorted xs y
+insertDescendingted :: (Ord a) => [a] -> a -> [a]
+insertDescendingted [] x = [x]
+insertDescendingted all@(x:xs) y = if y > x then y:all else x:insertDescendingted xs y
 
 addCustomer :: ExperimentState -> (Double -> Double) -> ExperimentState
 addCustomer (Init g) customerProcessingTime =
@@ -62,7 +62,7 @@ addCustomer (ExperimentState f c mw t es g) customerProcessingTime =
         waitTime = if tellerIsFreeOnArrival then 0 else f - c'
         t' = t + waitTime -- new totalWaitTime
         m' = max mw waitTime -- new maxWaitTime
-        es' = insertReverseSorted (insertReverseSorted es (Event c' Arrive)) (Event f' Leave)
+        es' = insertDescendingted (insertDescendingted es (Event c' Arrive)) (Event f' Leave)
     in ExperimentState f' c' m' t' es' g'
 
 maxAvgQLength :: [Event] -> (Integer, Double)
@@ -82,7 +82,7 @@ runSimulation :: Int -> String -> (Double -> Double) -> IO ()
 runSimulation sampleSize tag customerTime = do
     r :: Int <- randomIO
     let init = Init $ mkStdGen r
-        ExperimentState _ _ m t events _ = foldl' (\acc x -> addCustomer acc customerTime) init [1..sampleSize]
+        ExperimentState _ _ m t events _ = foldl' (\acc _ -> addCustomer acc customerTime) init [1..sampleSize]
         (mQ, aQ) = maxAvgQLength events
     print $ tag ++ " customer max wait time: " ++ show m
     print $ tag ++ " customer avg wait time: " ++ show (t / fromIntegral sampleSize)
@@ -92,5 +92,5 @@ runSimulation sampleSize tag customerTime = do
 main :: IO ()
 main = do
     let
-        sampleSize = 500000
+        sampleSize = 100000
     mapM_ (uncurry $ runSimulation sampleSize) [("Yellow", yellowCustomerTime), ("Red", redCustomerTime), ("Blue", blueCustomerTime)]
