@@ -4,6 +4,7 @@ module Main where
 import System.Random ( randomIO, uniformR, mkStdGen, StdGen )
 import Data.List ( foldl', elemIndex )
 import Data.Maybe (fromJust)
+import Control.Monad ( when )
 
 nextCustomerTime :: Double -> Double
 nextCustomerTime p = -100 * log (1 - p)
@@ -70,9 +71,9 @@ maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
     where
         (maxQueueLength, weightedQueueLengths, totalTime, _) = foldr (\(Event eventT eventAL) (accMax, accAvg, accTime, accQueue) ->
             let
-                accQueue' = if eventAL == Arrive then accQueue + 1 else accQueue - 1
-                deltaT = eventT - accTime
-                accAvg' = accAvg + deltaT * fromIntegral accQueue
+                accQueue' = if eventAL == Arrive then accQueue + 1 else accQueue - 1 -- adjust the queue length based on arrival or leaving
+                deltaT = eventT - accTime -- elapsed time since last queue change
+                accAvg' = accAvg + deltaT * fromIntegral accQueue -- weigh the queue length with elapsed time
                 accTime' = eventT
                 accMax' = max accMax accQueue'
             in (accMax', accAvg', accTime', accQueue')
@@ -88,28 +89,32 @@ maxAvgQLength es = (maxQueueLength, weightedQueueLengths / totalTime)
 --                 accMax' = max accMax accQueue'
 --             in (accMax', accAvg', accCount', accQueue')
 --             ) (0, 0, 0, 0) es
-    
-runSimulation :: Int -> String -> (Double -> Double) -> IO Double
-runSimulation sampleSize tag customerTime = do
+
+printAll = 1; printWait = 2; printQueue = 3; printNothing = 4
+
+runSimulation :: Int -> (String, Double -> Double, Int) -> IO Double
+runSimulation sampleSize (tag, customerTime, printWhat) = do
     r :: Int <- randomIO
     let init = Init $ mkStdGen r
         ExperimentState _ _ m t events _ = foldl' (\acc _ -> addCustomer acc customerTime) init [1..sampleSize]
         (mQ, aQ) = maxAvgQLength events
         avgWait = t / fromIntegral sampleSize
-    print $ tag ++ " customer max wait time: " ++ show m
-    print $ tag ++ " customer avg wait time: " ++ show avgWait
-    print $ tag ++ " customer max queue length: " ++ show mQ
-    print $ tag ++ " customer avg queue length: " ++ show aQ
+    when (printWhat == printAll || printWhat == printWait) ( do
+        print $ tag ++ " customer max wait time: " ++ show m
+        print $ tag ++ " customer avg wait time: " ++ show avgWait )
+    when (printWhat == printAll || printWhat == printQueue) ( do
+        print $ tag ++ " customer max queue length: " ++ show mQ
+        print $ tag ++ " customer avg queue length: " ++ show aQ )
     return (m - avgWait)
 
 main :: IO ()
 main = do
     let
         sampleSize = 200000
-        inputs = [("Yellow", yellowCustomerTime), ("Red", redCustomerTime), ("Blue", blueCustomerTime)]
-    results <- mapM (uncurry $ runSimulation sampleSize) inputs
+        inputs = [("Yellow", yellowCustomerTime, printWait), ("Red", redCustomerTime, printQueue), ("Blue", blueCustomerTime, printNothing)]
+    results <- mapM (runSimulation sampleSize) inputs
     let
         m = minimum results
         i = fromJust $ elemIndex m results
-        tag = fst $ inputs !! i
+        (tag, _, _) = inputs !! i
     print $ tag ++ " customers have the closest value between the average and maximum customer waiting times"
